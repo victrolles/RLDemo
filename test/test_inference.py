@@ -11,10 +11,9 @@ from inference import InferenceRunner, InferenceRequest, ModelSelection
 
 def main():
     config = InferenceRequest(
-        env_name="CarRacing-v3",
+        env_name="Pendulum-v1", # Pendulum-v1, LunarLander-v2, CarRacing-v3
         algorithm="sac",
-        model_selection=ModelSelection.RANDOM_ACTIONS,
-        seed=42
+        model_selection=ModelSelection.BEST
     )
 
     runner = InferenceRunner(config)
