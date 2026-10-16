@@ -1,0 +1,6 @@
+--extra-index-url https://download.pytorch.org/whl/cu132
+
+torch
+numpy
+
+gymnasium[box2d, other, classic_control]
