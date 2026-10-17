@@ -19,7 +19,6 @@ class InferenceRequest:
     algorithm: str
     model_selection: ModelSelection
     model_name: str | None = None
-    seed: int | None = None
 
     def __post_init__(self) -> None:
         if self.model_selection == ModelSelection.CUSTOM:

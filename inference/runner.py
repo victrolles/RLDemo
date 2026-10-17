@@ -1,3 +1,4 @@
+import threading
 from typing import Iterator
 
 import torch
@@ -43,9 +44,11 @@ class InferenceRunner:
         
         self.env = environment_maker.get_env()
 
-    def run(self,
-            stop_event = None,
-            max_steps: int = 3000) -> Iterator[InferenceResponse]:
+    def run(
+        self,
+        stop_event: threading.Event | None = None,
+        max_steps: int = 3000
+    ) -> Iterator[InferenceResponse]:
 
         try:
             obs, _ = self.env.reset(seed=self.config.seed)
