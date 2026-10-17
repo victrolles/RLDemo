@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import Icon from '../components/Icon'
 import GamePreview from '../components/GamePreview'
+import ReplayControls from '../components/ReplayControls'
 import { demos } from '../data/demos'
 import { fetchApi } from '../lib/api'
 import { useInference } from '../hooks/useInference'
@@ -72,7 +73,8 @@ export default function Inference() {
     env_name: gameId, algorithm, model_selection: policy,
     ...(policy === 'custom' && modelName ? { model_name: modelName } : {}),
   }
-  const episode = session.status === 'stopped' ? 'Stopped by you'
+  const episode = session.isReplaying ? 'Reviewing a recorded step'
+    : session.status === 'stopped' ? 'Stopped by you'
     : session.step?.terminated ? 'Terminal state reached'
     : session.step?.truncated ? 'Environment time limit'
     : session.status === 'finished' ? 'Step limit reached'
@@ -147,20 +149,21 @@ export default function Inference() {
               <button className="button button-primary start-inference" type="submit" disabled={!canStart}><Icon name="play" size={14} />{session.status === 'connecting' ? 'Preparing…' : session.status === 'running' ? 'Running' : session.status === 'stopping' ? 'Stopping…' : session.status === 'finished' || session.status === 'stopped' ? 'Run again' : 'Start inference'}</button>
               <button className="button stop-inference" type="button" disabled={!busy || session.status === 'stopping'} onClick={session.stop}><Icon name="stop" size={13} />Stop</button>
             </div>
-            <p className="setup-note">One episode per session. Stop at any time.</p>
+            <p className="setup-note">{session.canReplay ? 'Replay is kept until you change setup or start a new run.' : 'One episode per session. Stop at any time.'}</p>
           </form>
         </aside>
 
         <div className="live-column">
           <section className="viewer-panel" aria-labelledby="viewer-title">
-            <div className="viewer-heading"><div><Icon name="screen" size={16} /><h2 id="viewer-title">{game?.label ?? demo.title}</h2><span className="mono">{algorithm.toUpperCase()}</span></div><span className={`session-badge mono status-${session.status}`} role="status"><span />{statusLabels[session.status]}</span></div>
+            <div className="viewer-heading"><div><Icon name="screen" size={16} /><h2 id="viewer-title">{game?.label ?? demo.title}</h2><span className="mono">{algorithm.toUpperCase()}</span></div><span className={`session-badge mono status-${session.isReplaying ? 'replay' : session.status}`} role="status"><span />{session.isReplaying ? 'Replay' : statusLabels[session.status]}</span></div>
             <div className="live-stage" aria-busy={session.status === 'connecting'}>
               {!session.hasFrame && <div className="stage-illustration"><GamePreview game={demo.id} /></div>}
-              <canvas className={`live-canvas${session.hasFrame ? ' has-frame' : ''}`} ref={session.canvasRef} role="img" aria-label={`Live ${game?.label ?? demo.title} agent gameplay`} />
+              <canvas className={`live-canvas${session.hasFrame ? ' has-frame' : ''}`} ref={session.canvasRef} role="img" aria-label={`${session.canReplay ? 'Recorded' : 'Live'} ${game?.label ?? demo.title} agent gameplay${session.step ? ` at step ${session.step.step}` : ''}`} />
               {!session.hasFrame && <div className="stage-placeholder"><span className="stage-symbol"><Icon name={session.status === 'connecting' ? 'network' : 'play'} size={19} /></span><h3>{session.status === 'connecting' ? 'Preparing the next move' : 'Ready when you are.'}</h3><p>{session.status === 'connecting' ? 'Loading the environment and waiting for the first frame.' : 'Configure your agent and start a live session.'}</p></div>}
               {session.status === 'stopping' && <div className="stage-stopping">Stopping the episode…</div>}
             </div>
-            <div className="viewer-caption mono"><span><span className={`stream-dot${session.status === 'running' ? ' is-live' : ''}`} />{session.hasFrame ? session.status === 'running' ? 'Live environment render' : 'Last received frame' : 'Environment preview'}</span><span>{session.hasFrame ? 'Real-time inference' : 'No session running'}</span></div>
+            <div className="viewer-caption mono"><span><span className={`stream-dot${session.status === 'running' ? ' is-live' : ''}`} />{session.hasFrame ? session.isReplaying ? `Recorded step ${session.step?.step}` : session.status === 'running' ? 'Live environment render' : 'Last received frame' : 'Environment preview'}</span><span>{session.canReplay ? 'Episode replay' : session.hasFrame ? 'Real-time inference' : 'No session running'}</span></div>
+            <ReplayControls count={session.historyLength} index={session.historyIndex} enabled={session.canReplay} step={session.step?.step} onSeek={session.seek} onMove={session.moveReplay} />
           </section>
 
           <div className="metric-grid" aria-label="Live episode metrics">
@@ -169,6 +172,14 @@ export default function Inference() {
             <div className="metric-card metric-total"><span className="metric-label mono">Total reward</span><strong>{formatReward(session.step?.total_reward)}</strong><span className="metric-caption">Cumulative episode return</span></div>
           </div>
           <div className="episode-summary"><span className="mono">Episode status</span><span role="status">{episode}</span>{session.step && <span className="episode-flags mono">terminated: {String(session.step.terminated)} <span aria-hidden="true">/</span> truncated: {String(session.step.truncated)}</span>}</div>
+          {session.step && <div className="action-inspector">
+            <div className="action-heading"><span className="mono">{policy === 'random_actions' ? 'Random action' : 'Policy action'}</span><span>Action used for step {session.step.step}</span></div>
+            <div className="action-values">
+              {session.step.action == null ? <span className="action-unavailable">Action unavailable for this recording.</span>
+                : Array.isArray(session.step.action) ? session.step.action.map((value, index) => <span className="action-value" key={index}><span className="mono">a{index}</span><strong>{value.toFixed(4)}</strong></span>)
+                : <span className="action-value"><span className="mono">Action</span><strong>{session.step.action}</strong>{gameId === 'CartPole-v1' && <span>{session.step.action === 0 ? 'Push left' : 'Push right'}</span>}</span>}
+            </div>
+          </div>}
         </div>
       </div>
       {(catalogError || modelError || session.error) && <div className="inference-error" role="alert"><span>{catalogError || modelError || session.error}</span>{!busy && <button type="button" onClick={() => { session.reset(); setRefresh((value) => value + 1) }}>Refresh connection<Icon name="refresh" size={13} /></button>}</div>}

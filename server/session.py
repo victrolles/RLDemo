@@ -1,6 +1,7 @@
 import asyncio
 import threading
 import time
+from concurrent.futures import TimeoutError as FutureTimeoutError
 
 from fastapi import WebSocket, WebSocketDisconnect
 import cv2
@@ -61,31 +62,31 @@ class InferenceSession:
                 if self.stop_event.is_set():
                     break
 
-                loop.call_soon_threadsafe(
-                    self._enqueue,
-                    ("frame", result)
-                )
+                if not self._enqueue(loop, ("frame", result)):
+                    break
                 # Initial rendering can be slow; never burst through missed frames.
                 next_frame_at = max(next_frame_at, time.monotonic()) + frame_interval
                 self.stop_event.wait(max(0, next_frame_at - time.monotonic()))
 
         except Exception as exc:
-            loop.call_soon_threadsafe(
-                self._enqueue,
-                ("error", str(exc))
-            )
+            self._enqueue(loop, ("error", str(exc)))
 
         finally:
-            loop.call_soon_threadsafe(
-                self._enqueue,
-                ("done", None)
-            )
+            self._enqueue(loop, ("done", None))
 
-    def _enqueue(self, item):
-        if self.frames.full():
-            self.frames.get_nowait()
-
-        self.frames.put_nowait(item)
+    def _enqueue(self, loop, item):
+        """Apply backpressure so a slow consumer does not lose replay steps."""
+        if self.stop_event.is_set():
+            return False
+        pending = asyncio.run_coroutine_threadsafe(self.frames.put(item), loop)
+        while not self.stop_event.is_set():
+            try:
+                pending.result(timeout=0.1)
+                return True
+            except FutureTimeoutError:
+                continue
+        pending.cancel()
+        return False
 
     async def _receive_messages(self):
         try:
@@ -165,6 +166,7 @@ class InferenceSession:
             "step": result.step,
             "reward": float(result.reward),
             "total_reward": float(result.total_reward),
+            "action": result.action,
             "terminated": result.terminated,
             "truncated": result.truncated
         })

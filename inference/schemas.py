@@ -41,3 +41,4 @@ class InferenceResponse:
     total_reward: float
     terminated: bool
     truncated: bool
+    action: int | list[float] | None = None

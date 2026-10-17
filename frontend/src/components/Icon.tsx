@@ -1,9 +1,11 @@
-type IconName = 'arrow' | 'external' | 'play' | 'network' | 'layers' | 'screen' | 'down' | 'stop' | 'refresh'
+type IconName = 'arrow' | 'external' | 'play' | 'network' | 'layers' | 'screen' | 'down' | 'stop' | 'refresh' | 'left' | 'right'
 
 export default function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       {name === 'arrow' && <path d="M4 12h15m-6-6 6 6-6 6" />}
+      {name === 'left' && <path d="m14 5-7 7 7 7" />}
+      {name === 'right' && <path d="m10 5 7 7-7 7" />}
       {name === 'external' && <path d="M7 17 17 7M7 7h10v10" />}
       {name === 'down' && <path d="M12 4v16m-6-6 6 6 6-6" />}
       {name === 'play' && <path d="m9 5 11 7-11 7Z" fill="currentColor" stroke="none" />}

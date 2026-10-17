@@ -26,6 +26,10 @@ Choose a game, its algorithm, and a model selection. The server discovers checkp
 
 The viewer receives actual JPEG frames and matching step metadata, with the step number, per-step reward, total return, and terminated/truncated flags. Start runs one episode; Stop ends it. Changing the configuration resets the previous frame and metrics. Leaving the page closes the session. The server currently permits one inference at a time, with a clear busy message for other clients.
 
+After an episode ends or is stopped, use the left/right arrow keys, previous/next buttons, or timeline slider to review its history. The frame, action, rewards, and termination flags follow the selected step. "Last frame" restores the final frame. During inference the history is recorded and navigation is disabled. Keyboard shortcuts respect editable fields and native controls.
+
+The current episode is kept in browser memory as compressed JPEGs and metadata; starting a new run, changing setup, leaving the page, or refreshing releases it. No replay files are uploaded or persisted. See [the protocol and replay details](../docs/live_inference.md).
+
 In production, route `/api/*` and WebSocket upgrades to FastAPI, or set `VITE_API_BASE_URL` before building. `vite preview` serves the built frontend only and does not provide the development API proxy.
 
 ## Add the four recordings

@@ -50,14 +50,26 @@ Only include `model_name` for the `custom` selection. Optional `seed` defaults t
 
 The server responds with a `started` message, then pairs of messages:
 
-1. JSON metadata: `type: "step"`, `step`, `reward`, `total_reward`, `terminated`, `truncated`.
+1. JSON metadata: `type: "step"`, `step`, `action`, `reward`, `total_reward`, `terminated`, `truncated`.
 2. Binary JPEG for that step.
 
-Rendering is paced at the environment's display rate, capped at 60 FPS. A bounded queue can drop old frames for a slow consumer; `step` and `total_reward` always refer to the actual environment, rather than the number of displayed frames.
+`action` is the policy output used to produce this step's frame: a JSON integer for discrete actions or a list of numbers for continuous actions. It is copied before `env.step`, so it represents the action before any environment wrapper rescaling. Random-action baselines use the same format.
+
+Rendering is paced at the environment's display rate, capped at 60 FPS. A bounded queue applies backpressure to a slow consumer instead of dropping steps, preserving an ordered history for replay. Stopping or disconnecting also cancels a producer waiting on that queue.
 
 The client sends `{"type":"heartbeat"}` every five seconds. Send `{"type":"stop"}` to interrupt a run. The server ends with `finished` or `stopped`, then closes the socket. Failures send `{"type":"error","message":"..."}` when possible. Busy sessions close with code 1013; invalid requests use 1008; runtime failures use 1011. The inference lock stays held until the worker has stopped and the environment is closed.
 
-The React client decodes JPEGs into a canvas, pairs metadata with the corresponding frame, and discards frames from old sessions. It preserves the final frame and reward after completion or stop, and resets them when the configuration changes.
+The React client decodes JPEGs into a canvas and pairs metadata with the corresponding frame. It preserves the final frame and reward after completion or stop.
+
+## Episode replay
+
+While inference runs, the browser keeps the compressed JPEG and its metadata for each received step. Replay becomes available after completion, manual stop, or a connection error with previously received frames. Use the left/right arrow keys, previous/next buttons, or the timeline slider to navigate. "Last frame" returns to the final recorded step.
+
+Each selection updates the canvas, step number, action, per-step reward, total return, and terminated/truncated flags together. Actions explain the transition into the displayed frame. Discrete CartPole actions also show their left/right meaning. Arrow shortcuts leave editable fields and native select/slider navigation alone. Rapid seeks discard obsolete asynchronous image decodes.
+
+History belongs to the current episode and stays in browser memory. It is released when a new run starts, setup changes, or the page is left/refreshed. JPEGs are decoded on demand rather than retaining a decoded bitmap for every step. The current runner limits episodes to 3,000 steps. A stopped episode's history is the received prefix of that run.
+
+The neural-network visualization is a separate future step; this change records action outputs without capturing network weights, activations, or observations.
 
 ## Checkpoint compatibility
 
@@ -73,8 +85,9 @@ Run from the repository root:
 .\.venv\Scripts\python.exe -m unittest discover -s tests -p test_catalog.py -v
 .\.venv\Scripts\python.exe -m unittest discover -s tests -p test_model_loading.py -v
 .\.venv\Scripts\python.exe -m unittest discover -s tests -p test_api.py -v
+.\.venv\Scripts\python.exe -m unittest discover -s tests -p test_session_history.py -v
 ```
 
-The API tests start an isolated local server and exercise actual rendered episodes, custom checkpoints, stopping, completion, busy handling, and invalid model selection. Checkpoint-specific tests skip when the required model files are absent.
+The API tests start an isolated local server and exercise actual rendered episodes, discrete/continuous action serialization, complete step histories, custom checkpoints, stopping, completion, busy handling, and invalid model selection. Session tests cover a slow consumer and cancellation while the producer is waiting on a full queue. Checkpoint-specific tests skip when the required model files are absent.
 
 Build the frontend with `npm run build` from `frontend/`.

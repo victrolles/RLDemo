@@ -2,6 +2,7 @@ import threading
 from typing import Iterator
 
 import torch
+import numpy as np
 
 from inference.environment_maker import EnvironmentMaker
 from inference.model_factory import ModelFactory
@@ -64,6 +65,8 @@ class InferenceRunner:
                 else:
                     action = self.policy.predict(obs)
 
+                # Snapshot the policy output before wrappers can transform the action.
+                recorded_action = np.asarray(action).tolist()
                 obs, reward, terminated, truncated, _ = self.env.step(action)
                 total_reward += float(reward)
 
@@ -75,7 +78,8 @@ class InferenceRunner:
                     reward=reward,
                     total_reward=total_reward,
                     terminated=terminated,
-                    truncated=truncated
+                    truncated=truncated,
+                    action=recorded_action
                 )
 
                 if terminated or truncated:

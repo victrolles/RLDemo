@@ -18,6 +18,7 @@ export type InferenceResponse = {
   step: number;
   reward: number;
   total_reward: number;
+  action: number | number[] | null;
   terminated: boolean;
   truncated: boolean;
 };

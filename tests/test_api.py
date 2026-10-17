@@ -88,6 +88,7 @@ class ApiTests(unittest.TestCase):
             step = self.receive_step(ws)
             self.assertGreater(step["step"], 0)
             self.assertIsInstance(step["reward"], float)
+            self.assertEqual(len(step["action"]), 1)
             ws.send(json.dumps({"type": "heartbeat"}))
             self.stop_session(ws)
 
@@ -97,7 +98,16 @@ class ApiTests(unittest.TestCase):
             self.skipTest("No CarRacing checkpoint installed")
         with connect(self.ws) as ws:
             self.start_session(ws, env_name="CarRacing-v3", model_selection="custom", model_name=catalog["models"][0]["name"])
-            self.receive_step(ws)
+            step = self.receive_step(ws)
+            self.assertEqual(len(step["action"]), 3)
+            self.stop_session(ws)
+
+    def test_discrete_actions_are_json_integers(self):
+        with connect(self.ws) as ws:
+            self.start_session(ws, env_name="CartPole-v1", algorithm="dqn")
+            step = self.receive_step(ws)
+            self.assertIsInstance(step["action"], int)
+            self.assertIn(step["action"], [0, 1])
             self.stop_session(ws)
 
     def test_completed_episode_sends_final_metrics_and_finished(self):
@@ -111,9 +121,9 @@ class ApiTests(unittest.TestCase):
                 if message["type"] == "finished":
                     break
                 self.assertEqual(message["type"], "step", message)
-                self.assertGreater(message["step"], previous)
-                if message["step"] == previous + 1:
-                    self.assertAlmostEqual(message["total_reward"], total + message["reward"])
+                self.assertEqual(message["step"], previous + 1)
+                self.assertAlmostEqual(message["total_reward"], total + message["reward"])
+                self.assertEqual(len(message["action"]), 1)
                 total = message["total_reward"]
                 self.assertIsInstance(ws.recv(timeout=5), bytes)
                 previous = message["step"]

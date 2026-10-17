@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { inferenceUrl } from '../lib/api'
 import type { InferenceRequest, InferenceResponse, Status } from '../types/types'
+
+type RecordedFrame = { image: Blob; metadata: InferenceResponse }
 
 export function useInference() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -12,12 +14,71 @@ export function useInference() {
   const [error, setError] = useState('')
   const [step, setStep] = useState<InferenceResponse | null>(null)
   const [hasFrame, setHasFrame] = useState(false)
+  const history = useRef<RecordedFrame[]>([])
+  const renderTicket = useRef(0)
+  const replayReady = useRef(false)
+  const targetIndex = useRef(-1)
+  const [historyLength, setHistoryLength] = useState(0)
+  const [historyIndex, setHistoryIndex] = useState(-1)
+
+  const present = useCallback(async (frame: RecordedFrame, index: number) => {
+    const ticket = ++renderTicket.current
+    let bitmap: ImageBitmap
+    try {
+      bitmap = await createImageBitmap(frame.image)
+    } catch (error) {
+      if (ticket !== renderTicket.current || history.current[index] !== frame) return false
+      throw error
+    }
+    try {
+      // A rapid seek or new session can supersede an asynchronous decode.
+      if (ticket !== renderTicket.current || history.current[index] !== frame) return false
+      const canvas = canvasRef.current
+      const context = canvas?.getContext('2d')
+      if (!canvas || !context) return false
+      if (canvas.width !== bitmap.width) canvas.width = bitmap.width
+      if (canvas.height !== bitmap.height) canvas.height = bitmap.height
+      context.drawImage(bitmap, 0, 0)
+      setHasFrame(true)
+      setStep(frame.metadata)
+      setHistoryIndex(index)
+      return true
+    } finally {
+      bitmap.close()
+    }
+  }, [])
+
+  const seek = useCallback((index: number) => {
+    if (!replayReady.current || history.current.length === 0) return
+    const next = Math.max(0, Math.min(index, history.current.length - 1))
+    targetIndex.current = next
+    void present(history.current[next], next).catch(() => {
+      setError('Could not display this recorded frame. Try another step.')
+    })
+  }, [present])
+
+  const moveReplay = useCallback((offset: number) => {
+    seek(targetIndex.current + offset)
+  }, [seek])
+
+  function clearHistory() {
+    ++renderTicket.current
+    history.current = []
+    replayReady.current = false
+    targetIndex.current = -1
+    setHistoryLength(0)
+    setHistoryIndex(-1)
+    setStep(null)
+    setHasFrame(false)
+  }
 
   useEffect(() => () => {
     clearTimers.current()
     window.clearTimeout(stopTimer.current)
     const socket = socketRef.current
     socketRef.current = null
+    ++renderTicket.current
+    history.current = []
     if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'stop' }))
     socket?.close()
   }, [])
@@ -28,8 +89,7 @@ export function useInference() {
     window.clearTimeout(stopTimer.current)
     stopRequested.current = false
     setError('')
-    setStep(null)
-    setHasFrame(false)
+    clearHistory()
     setStatus('connecting')
 
     let socket: WebSocket
@@ -44,8 +104,6 @@ export function useInference() {
     socketRef.current = socket
     let metadata: InferenceResponse | null = null
     let terminal: 'finished' | 'stopped' | 'error' | null = null
-    let received = 0
-    let drawn = 0
     let heartbeat: number | undefined
     let timeout: number | undefined
     clearTimers.current = () => {
@@ -57,6 +115,7 @@ export function useInference() {
     function fail(message: string) {
       if (socketRef.current !== socket) return
       terminal = 'error'
+      replayReady.current = true
       clearTimers.current()
       setError(message)
       setStatus('error')
@@ -83,6 +142,7 @@ export function useInference() {
             metadata = message as InferenceResponse
           } else if (message.type === 'finished' || message.type === 'stopped') {
             terminal = message.type
+            replayReady.current = true
             clearTimers.current()
             setStatus(message.type)
           } else if (message.type === 'error') {
@@ -97,25 +157,15 @@ export function useInference() {
       if (!(event.data instanceof Blob) || !metadata) return
       const frameStep = metadata
       metadata = null
-      const sequence = ++received
+      const frame = { image: event.data, metadata: frameStep }
+      const index = history.current.push(frame) - 1
+      targetIndex.current = index
+      setHistoryLength(history.current.length)
       try {
-        const bitmap = await createImageBitmap(event.data)
-        try {
-          // Decoding is asynchronous: discard old sessions and out-of-order frames.
-          if (socketRef.current !== socket || sequence <= drawn) return
-          const canvas = canvasRef.current
-          const context = canvas?.getContext('2d')
-          if (!canvas || !context) return
-          if (canvas.width !== bitmap.width) canvas.width = bitmap.width
-          if (canvas.height !== bitmap.height) canvas.height = bitmap.height
-          context.drawImage(bitmap, 0, 0)
-          drawn = sequence
+        const displayed = await present(frame, index)
+        if (displayed && socketRef.current === socket) {
           window.clearTimeout(timeout)
-          setHasFrame(true)
-          setStep(frameStep)
           if (!terminal && !stopRequested.current) setStatus('running')
-        } finally {
-          bitmap.close()
         }
       } catch {
         fail('Could not display the live frame. Please restart the session.')
@@ -128,6 +178,7 @@ export function useInference() {
     socket.onclose = (event) => {
       if (socketRef.current !== socket) return
       clearTimers.current()
+      replayReady.current = true
       if (terminal) return
       if (stopRequested.current) {
         setStatus('stopped')
@@ -161,9 +212,12 @@ export function useInference() {
     socketRef.current = null
     setStatus('idle')
     setError('')
-    setStep(null)
-    setHasFrame(false)
+    clearHistory()
   }
 
-  return { canvasRef, status, error, step, hasFrame, start, stop, reset }
+  const canReplay = historyLength > 0 && ['finished', 'stopped', 'error'].includes(status)
+  const isReplaying = canReplay && historyIndex >= 0 && historyIndex < historyLength - 1
+
+  return { canvasRef, status, error, step, hasFrame, start, stop, reset,
+    historyLength, historyIndex, canReplay, isReplaying, seek, moveReplay }
 }
