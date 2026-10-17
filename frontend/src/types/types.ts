@@ -1,4 +1,6 @@
-export type ModelSelection = 
+import type { NetworkSnapshot } from './network'
+
+export type ModelSelection =
 | "best"
 | "worst"
 | "random"
@@ -19,6 +21,7 @@ export type InferenceResponse = {
   reward: number;
   total_reward: number;
   action: number | number[] | null;
+  network?: NetworkSnapshot | null;
   terminated: boolean;
   truncated: boolean;
 };

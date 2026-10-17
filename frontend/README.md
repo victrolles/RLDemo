@@ -30,6 +30,8 @@ After an episode ends or is stopped, use the left/right arrow keys, previous/nex
 
 The current episode is kept in browser memory as compressed JPEGs and metadata; starting a new run, changing setup, leaving the page, or refreshing releases it. No replay files are uploaded or persisted. See [the protocol and replay details](../docs/live_inference.md).
 
+The third panel visualizes the actual model input, hidden-layer activity, and action calculation. Static weights arrive once per run; activations follow each recorded frame. Select a layer and a neuron/channel to inspect it, or choose a final-output contribution. CNN views show the real preprocessed frame stack and per-channel spatial means. The final dense head shows signed activation × weight contributions, bias, and tanh/argmax output. Random-action sessions explicitly have no neural network. The colors describe activity and weight magnitude, rather than causal importance.
+
 In production, route `/api/*` and WebSocket upgrades to FastAPI, or set `VITE_API_BASE_URL` before building. `vite preview` serves the built frontend only and does not provide the development API proxy.
 
 ## Add the four recordings

@@ -47,6 +47,8 @@ class ApiTests(unittest.TestCase):
             return json.load(response)
 
     def start_session(self, ws, **overrides):
+        self.last_network = None
+        self.network_messages = 0
         request = {"env_name": "Pendulum-v1", "algorithm": "sac", "model_selection": "random_actions", "seed": 42}
         request.update(overrides)
         ws.send(json.dumps(request))
@@ -54,6 +56,10 @@ class ApiTests(unittest.TestCase):
 
     def receive_step(self, ws):
         metadata = json.loads(ws.recv(timeout=15))
+        while metadata["type"] == "network":
+            self.last_network = metadata["network"]
+            self.network_messages += 1
+            metadata = json.loads(ws.recv(timeout=15))
         self.assertEqual(metadata["type"], "step", metadata)
         frame = ws.recv(timeout=5)
         self.assertIsInstance(frame, bytes)
@@ -89,6 +95,11 @@ class ApiTests(unittest.TestCase):
             self.assertGreater(step["step"], 0)
             self.assertIsInstance(step["reward"], float)
             self.assertEqual(len(step["action"]), 1)
+            self.assertEqual(self.last_network["architecture"], "MLP actor")
+            self.assertEqual(step["network"]["input"]["kind"], "vector")
+            np.testing.assert_allclose(step["network"]["output"]["action"], step["action"])
+            self.receive_step(ws)
+            self.assertEqual(self.network_messages, 1)
             ws.send(json.dumps({"type": "heartbeat"}))
             self.stop_session(ws)
 
@@ -100,6 +111,8 @@ class ApiTests(unittest.TestCase):
             self.start_session(ws, env_name="CarRacing-v3", model_selection="custom", model_name=catalog["models"][0]["name"])
             step = self.receive_step(ws)
             self.assertEqual(len(step["action"]), 3)
+            self.assertEqual(self.last_network["architecture"], "CNN actor")
+            self.assertEqual(step["network"]["input"]["shape"], [4, 84, 84])
             self.stop_session(ws)
 
     def test_discrete_actions_are_json_integers(self):
@@ -108,6 +121,8 @@ class ApiTests(unittest.TestCase):
             step = self.receive_step(ws)
             self.assertIsInstance(step["action"], int)
             self.assertIn(step["action"], [0, 1])
+            self.assertIsNone(self.last_network)
+            self.assertIsNone(step["network"])
             self.stop_session(ws)
 
     def test_completed_episode_sends_final_metrics_and_finished(self):
@@ -118,6 +133,9 @@ class ApiTests(unittest.TestCase):
             total = 0
             while True:
                 message = json.loads(ws.recv(timeout=15))
+                if message["type"] == "network":
+                    self.assertIsNone(message["network"])
+                    continue
                 if message["type"] == "finished":
                     break
                 self.assertEqual(message["type"], "step", message)

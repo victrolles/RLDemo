@@ -24,6 +24,7 @@ class InferenceSession:
         self.thread = None
 
         self.last_heartbeat = time.monotonic()
+        self.network_sent = False
 
     async def run(self):
         loop = asyncio.get_running_loop()
@@ -144,6 +145,9 @@ class InferenceSession:
 
 
     async def _send_result(self, result):
+        if not self.network_sent:
+            await self.websocket.send_json({"type": "network", "network": result.network_definition})
+            self.network_sent = True
         # Convert RGB frame to BGR for OpenCV
         frame_bgr = cv2.cvtColor(
             result.frame,
@@ -167,6 +171,7 @@ class InferenceSession:
             "reward": float(result.reward),
             "total_reward": float(result.total_reward),
             "action": result.action,
+            "network": result.network,
             "terminated": result.terminated,
             "truncated": result.truncated
         })

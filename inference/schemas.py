@@ -42,3 +42,5 @@ class InferenceResponse:
     terminated: bool
     truncated: bool
     action: int | list[float] | None = None
+    network: dict | None = None
+    network_definition: dict | None = None

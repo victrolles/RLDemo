@@ -6,6 +6,7 @@ import numpy as np
 
 from inference.environment_maker import EnvironmentMaker
 from inference.model_factory import ModelFactory
+from inference.network_inspector import NetworkInspector
 from inference.schemas import (
     InferenceRequest,
     InferenceResponse,
@@ -44,6 +45,9 @@ class InferenceRunner:
             )
         
         self.env = environment_maker.get_env()
+        self.inspector = None if self.policy is None else NetworkInspector(
+            self.policy.model, config.algorithm, config.env_name
+        )
 
     def run(
         self,
@@ -63,7 +67,10 @@ class InferenceRunner:
                 if self.policy is None:
                     action = self.env.action_space.sample()
                 else:
+                    self.inspector.begin()
                     action = self.policy.predict(obs)
+
+                network = None if self.inspector is None else self.inspector.snapshot(obs, action)
 
                 # Snapshot the policy output before wrappers can transform the action.
                 recorded_action = np.asarray(action).tolist()
@@ -79,10 +86,14 @@ class InferenceRunner:
                     total_reward=total_reward,
                     terminated=terminated,
                     truncated=truncated,
-                    action=recorded_action
+                    action=recorded_action,
+                    network=network,
+                    network_definition=self.inspector.definition if self.inspector is not None and step == 1 else None
                 )
 
                 if terminated or truncated:
                     break
         finally:
+            if self.inspector is not None:
+                self.inspector.close()
             self.env.close()

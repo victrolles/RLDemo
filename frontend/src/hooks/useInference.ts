@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { inferenceUrl } from '../lib/api'
 import type { InferenceRequest, InferenceResponse, Status } from '../types/types'
+import type { NetworkDefinition } from '../types/network'
 
 type RecordedFrame = { image: Blob; metadata: InferenceResponse }
 
@@ -14,6 +15,7 @@ export function useInference() {
   const [error, setError] = useState('')
   const [step, setStep] = useState<InferenceResponse | null>(null)
   const [hasFrame, setHasFrame] = useState(false)
+  const [network, setNetwork] = useState<NetworkDefinition | null>(null)
   const history = useRef<RecordedFrame[]>([])
   const renderTicket = useRef(0)
   const replayReady = useRef(false)
@@ -62,6 +64,7 @@ export function useInference() {
   }, [seek])
 
   function clearHistory() {
+    setNetwork(null)
     ++renderTicket.current
     history.current = []
     replayReady.current = false
@@ -140,6 +143,8 @@ export function useInference() {
           const message = JSON.parse(event.data)
           if (message.type === 'step') {
             metadata = message as InferenceResponse
+          } else if (message.type === 'network') {
+            setNetwork(message.network)
           } else if (message.type === 'finished' || message.type === 'stopped') {
             terminal = message.type
             replayReady.current = true
@@ -218,6 +223,6 @@ export function useInference() {
   const canReplay = historyLength > 0 && ['finished', 'stopped', 'error'].includes(status)
   const isReplaying = canReplay && historyIndex >= 0 && historyIndex < historyLength - 1
 
-  return { canvasRef, status, error, step, hasFrame, start, stop, reset,
+  return { canvasRef, status, error, step, hasFrame, network, start, stop, reset,
     historyLength, historyIndex, canReplay, isReplaying, seek, moveReplay }
 }

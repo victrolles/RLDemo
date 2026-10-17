@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import Icon from '../components/Icon'
 import GamePreview from '../components/GamePreview'
 import ReplayControls from '../components/ReplayControls'
+import NetworkPanel from '../components/NetworkPanel'
 import { demos } from '../data/demos'
 import { fetchApi } from '../lib/api'
 import { useInference } from '../hooks/useInference'
@@ -94,7 +95,7 @@ export default function Inference() {
         <div>
           <span className="section-kicker mono">Inside the decision loop</span>
           <h1 id="inference-title">Your agent. <span className="gradient-text">Live.</span></h1>
-          <p>Choose a world, pick a policy, and watch every decision unfold.</p>
+          <p>Choose a world, watch the agent, and follow the decision through its network.</p>
         </div>
         <span className={`connection-badge mono${catalogError || modelError ? ' is-offline' : ''}`} role="status"><span />{catalogLoading ? 'Connecting to server' : catalogError || modelError ? 'Server unavailable' : 'Server connected'}</span>
       </div>
@@ -181,6 +182,7 @@ export default function Inference() {
             </div>
           </div>}
         </div>
+        <NetworkPanel model={session.network} snapshot={session.step?.network ?? null} step={session.step?.step} randomActions={policy === 'random_actions'} preparing={session.status === 'connecting'} replay={session.canReplay} />
       </div>
       {(catalogError || modelError || session.error) && <div className="inference-error" role="alert"><span>{catalogError || modelError || session.error}</span>{!busy && <button type="button" onClick={() => { session.reset(); setRefresh((value) => value + 1) }}>Refresh connection<Icon name="refresh" size={13} /></button>}</div>}
       <p className="inference-footnote"><Icon name="network" size={14} />Every frame comes from the running environment. Every reward comes from the agent’s latest action.</p>

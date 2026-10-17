@@ -48,9 +48,9 @@ Connect to `/inference`, then send one request:
 
 Only include `model_name` for the `custom` selection. Optional `seed` defaults to `null`.
 
-The server responds with a `started` message, then pairs of messages:
+The server responds with a `started` message. Before the first step, it sends one `{"type":"network","network":...}` message with static model information (or `null` for random actions). It then sends pairs of messages:
 
-1. JSON metadata: `type: "step"`, `step`, `action`, `reward`, `total_reward`, `terminated`, `truncated`.
+1. JSON metadata: `type: "step"`, `step`, `action`, `network`, `reward`, `total_reward`, `terminated`, `truncated`.
 2. Binary JPEG for that step.
 
 `action` is the policy output used to produce this step's frame: a JSON integer for discrete actions or a list of numbers for continuous actions. It is copied before `env.step`, so it represents the action before any environment wrapper rescaling. Random-action baselines use the same format.
@@ -69,7 +69,30 @@ Each selection updates the canvas, step number, action, per-step reward, total r
 
 History belongs to the current episode and stays in browser memory. It is released when a new run starts, setup changes, or the page is left/refreshed. JPEGs are decoded on demand rather than retaining a decoded bitmap for every step. The current runner limits episodes to 3,000 steps. A stopped episode's history is the received prefix of that run.
 
-The neural-network visualization is a separate future step; this change records action outputs without capturing network weights, activations, or observations.
+## Neural-network inspection
+
+The third panel follows the displayed frame in both live inference and replay. It shows the observation used **before** the action that produced that frame, post-ReLU hidden activations, a sampled connection graph, all units in an inspectable grid, and the action calculation.
+
+`NetworkInspector` registers forward hooks on the existing policy. There is one policy evaluation per step; hooks observe outputs without changing them. They are removed when the runner closes. Static architecture and weights are sent once per session. Dynamic snapshots are stored with each frame's metadata and replayed with that frame.
+
+Static `network` definition fields:
+
+- `algorithm`, `architecture`, `parameter_count`.
+- `layers`: IDs, labels, unit counts, up to six fixed representative indices, and per-unit mean absolute outgoing weight.
+- `edges`: sampled signed weights, normalized magnitudes, and an `aggregate` marker.
+- `output_source`, `output_weights`, `output_bias`: the full final dense head, used to reconstruct and explain output contributions.
+
+Per-step `network` snapshot fields:
+
+- `input`: vector observation values/labels, or an actual PNG strip of the four preprocessed 84×84 grayscale frames for CarRacing.
+- `activations`: layer-indexed neuron values. Convolution layers use the spatial mean per channel. The image input graph uses the mean of each channel after division by 255.
+- `output`: `rule` (`tanh` for deterministic SAC, `argmax` for DQN), raw mean/Q values and the selected policy action.
+
+For SAC, the displayed final calculation is `action = tanh(W · h + b)`. The unused log-standard-deviation branch is omitted because inference uses the deterministic policy. DQN shows the Q values and selects their argmax. The contribution list uses **all** actual final-layer activations and weights, displays the four largest signed products, and combines the rest into a remainder. These calculations can differ at the last decimal because telemetry values are rounded to six decimals and static weights to seven.
+
+Brightness represents absolute activation, normalized within a layer. Link widths represent weight magnitude; purple links have positive signed weights and peach links negative ones. Convolution connections are summaries across kernels/spatial positions, not individual pixel connections. Mean outgoing weight magnitude and local output contributions are descriptive quantities, **not causal neuron-importance or attribution scores**.
+
+The inspector grid includes all units in the shown layers. Selecting a graph node, grid tile, or output contributor updates the inspected unit. Arrow keys within the neuron grid navigate units without moving the episode timeline. At smaller widths the third panel moves below the viewer. Random-action baselines display an explicit no-network state.
 
 ## Checkpoint compatibility
 
@@ -86,8 +109,9 @@ Run from the repository root:
 .\.venv\Scripts\python.exe -m unittest discover -s tests -p test_model_loading.py -v
 .\.venv\Scripts\python.exe -m unittest discover -s tests -p test_api.py -v
 .\.venv\Scripts\python.exe -m unittest discover -s tests -p test_session_history.py -v
+.\.venv\Scripts\python.exe -m unittest discover -s tests -p test_network_inspector.py -v
 ```
 
-The API tests start an isolated local server and exercise actual rendered episodes, discrete/continuous action serialization, complete step histories, custom checkpoints, stopping, completion, busy handling, and invalid model selection. Session tests cover a slow consumer and cancellation while the producer is waiting on a full queue. Checkpoint-specific tests skip when the required model files are absent.
+The API tests start an isolated local server and exercise actual rendered episodes, action/network serialization, complete step histories, custom checkpoints, stopping, completion, busy handling, and invalid model selection. Session tests cover a slow consumer and cancellation while the producer is waiting on a full queue. Inspector tests verify unchanged DQN/SAC/CNN predictions, a single forward pass, final-layer reconstruction, fixed weights, and exact CNN input strips. Checkpoint-specific tests skip when the required model files are absent.
 
 Build the frontend with `npm run build` from `frontend/`.
