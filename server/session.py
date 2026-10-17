@@ -40,7 +40,7 @@ class InferenceSession:
         )
 
         try:
-            await self._stream_frames(receiver)
+            return await self._stream_frames(receiver)
         finally:
             self.stop_event.set()
             receiver.cancel()
@@ -52,6 +52,10 @@ class InferenceSession:
     def _run_inference(self, loop):
         try:
             runner = InferenceRunner(self.request)
+            # Run at the environment's display rate, rather than flooding the browser.
+            fps = max(1, min(60, runner.env.metadata.get("render_fps", 30)))
+            frame_interval = 1.0 / fps
+            next_frame_at = time.monotonic()
 
             for result in runner.run(self.stop_event):
                 if self.stop_event.is_set():
@@ -61,6 +65,9 @@ class InferenceSession:
                     self._enqueue,
                     ("frame", result)
                 )
+                # Initial rendering can be slow; never burst through missed frames.
+                next_frame_at = max(next_frame_at, time.monotonic()) + frame_interval
+                self.stop_event.wait(max(0, next_frame_at - time.monotonic()))
 
         except Exception as exc:
             loop.call_soon_threadsafe(
@@ -122,7 +129,7 @@ class InferenceSession:
             kind, data = frame_task.result()
 
             if kind == "done":
-                break
+                return "finished"
 
             if kind == "error":
                 raise RuntimeError(data)
@@ -130,6 +137,8 @@ class InferenceSession:
             # Convert and send the frame.
             # Details below.
             await self._send_result(data)
+
+        return "stopped"
 
 
 

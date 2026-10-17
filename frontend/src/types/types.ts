@@ -10,6 +10,7 @@ export type InferenceRequest = {
     algorithm: string;
     model_selection: ModelSelection;
     model_name?: string;
+    seed?: number;
 };
 
 export type InferenceResponse = {
@@ -36,3 +37,16 @@ export type Status =
   | "stopped"
   | "finished"
   | "error";
+
+export type Environment = {
+  id: string;
+  label: string;
+  algorithms: { id: string; label: string }[];
+};
+
+export type ModelCatalog = {
+  env_name: string;
+  algorithm: string;
+  models: { name: string }[];
+  selections: ModelSelection[];
+};

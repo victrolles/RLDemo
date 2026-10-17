@@ -1,10 +1,9 @@
 import torch
-import torch.nn as nn
 
 from agents.networks import DQN, PolicyNetwork, CNNPolicyNetwork
 from agents.policy import Policy, DQNPolicy, SACPolicy
-from inference.schemas import InferenceRequest, ModelSelection
-from inference.utils import get_random_model
+from inference.schemas import InferenceRequest
+from inference.catalog import resolve_model_path
 
 
 class ModelFactory:
@@ -20,28 +19,31 @@ class ModelFactory:
         self.model.to(self.device)
         self.model.eval()  # Set the model to evaluation mode
 
-    def _load_config(self, models_path: str = "models"):
-
-        model_directory = f"{models_path}/{self.inference_request.env_name}/{self.inference_request.algorithm}"
-
-        if self.inference_request.model_selection == ModelSelection.BEST:
-            model_path = f"{model_directory}/best_model.pt"
-        elif self.inference_request.model_selection == ModelSelection.WORST:
-            model_path = f"{model_directory}/worst_model.pt"
-        elif self.inference_request.model_selection == ModelSelection.RANDOM:
-            model_path = get_random_model(model_directory)
-        elif self.inference_request.model_selection == ModelSelection.CUSTOM:
-            model_path = f"{model_directory}/{self.inference_request.model_name}"
-        else:
-            raise ValueError(
-                f"Invalid model_selection: {self.inference_request.model_selection}"
-            )
+    def _load_config(self):
+        model_path = resolve_model_path(self.inference_request)
 
         model_data = torch.load(
             model_path,
             map_location=self.device,
             weights_only=True
         )
+
+        # The existing CarRacing exports are actor state dicts without metadata.
+        # Their training configuration uses 4x84x84 images and normalized actions.
+        if "model_state_dict" not in model_data:
+            if (
+                self.inference_request.env_name != "CarRacing-v3"
+                or self.inference_request.algorithm != "sac"
+                or "encoder.network.0.weight" not in model_data
+            ):
+                raise ValueError("This checkpoint needs environment and network metadata.")
+            self.state_size = (model_data["encoder.network.0.weight"].shape[1], 84, 84)
+            self.hidden_size = model_data["backbone.0.weight"].shape[0]
+            self.action_size = model_data["mean_head.weight"].shape[0]
+            self.normalize = True
+            self.reward = None
+            self.model_state_dict = model_data
+            return
 
         env_name = model_data["env_name"]
         if env_name != self.inference_request.env_name:
@@ -73,19 +75,20 @@ class ModelFactory:
 
         elif self.inference_request.algorithm == "sac":
             # Detect image observations
-            is_image = isinstance(self.state_size, tuple)
+            is_image = isinstance(self.state_size, (tuple, list))
 
             if is_image:
-                actor_class = CNNPolicyNetwork
+                model = CNNPolicyNetwork(
+                    num_channels=self.state_size[0],
+                    hidden_size=self.hidden_size,
+                    num_actions=self.action_size
+                )
             else:
-                actor_class = PolicyNetwork
-
-            # Actor
-            model = actor_class(
-                num_inputs=self.state_size,
-                hidden_size=self.hidden_size,
-                num_actions=self.action_size
-            )
+                model = PolicyNetwork(
+                    num_inputs=self.state_size,
+                    hidden_size=self.hidden_size,
+                    num_actions=self.action_size
+                )
 
         else:
             raise ValueError(
