@@ -44,6 +44,7 @@ class InferenceRunner:
         self.env = environment_maker.get_env()
 
     def run(self,
+            stop_event = None,
             max_steps: int = 3000) -> Iterator[InferenceResponse]:
 
         try:
@@ -51,6 +52,10 @@ class InferenceRunner:
             total_reward = 0.0
 
             for step in range(1, max_steps + 1):
+                # Interrupt the loop if the user is disconnected or switches to another inference session
+                if stop_event is not None and stop_event.is_set():
+                    break
+
                 if self.policy is None:
                     action = self.env.action_space.sample()
                 else:
@@ -65,7 +70,9 @@ class InferenceRunner:
                     frame=frame,
                     step=step,
                     reward=reward,
-                    total_reward=total_reward
+                    total_reward=total_reward,
+                    terminated=terminated,
+                    truncated=truncated
                 )
 
                 if terminated or truncated:

@@ -1,6 +1,14 @@
 --extra-index-url https://download.pytorch.org/whl/cu132
 
+# Inference libraries
 torch
 numpy
-
 gymnasium[box2d, other, classic_control]
+
+# Server libraries
+fastapi
+pydantic
+uvicorn
+uvicorn[standard]
+websockets
+opencv-python

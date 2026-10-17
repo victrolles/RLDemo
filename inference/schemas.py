@@ -39,3 +39,5 @@ class InferenceResponse:
     step: int
     reward: float
     total_reward: float
+    terminated: bool
+    truncated: bool
