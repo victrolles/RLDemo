@@ -1,0 +1,10 @@
+# Direct dependencies from the working Python 3.13 environment.
+# Gymnasium extras provide rendering and Box2D physics dependencies.
+fastapi==0.143.3
+gymnasium[box2d,classic-control]==1.4.0
+numpy==2.5.4
+opencv-python==5.0.0.93
+pydantic==2.14.1
+torch==2.14.1
+uvicorn[standard]==0.54.0
+websockets==17.2

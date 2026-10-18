@@ -31,7 +31,7 @@ Selections:
 | `custom` | Loads the specified `model_name` from the discovered list. |
 | `random_actions` | Samples random actions without loading a model. |
 
-The current checkout includes Pendulum and CarRacing checkpoints. CartPole and BipedalWalker can be explored with random actions until checkpoints are added.
+The current checkout includes CartPole, Pendulum, and BipedalWalker checkpoints. CarRacing can be explored with random actions until compatible checkpoints are added.
 
 ## WebSocket protocol
 

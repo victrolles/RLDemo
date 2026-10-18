@@ -1,27 +1,30 @@
-# How to locally orchestrate a small project(Using Concurrently)
+# How to locally orchestrate a small project (using Concurrently)
+
+For the complete Python environment and dependency setup, see the [project installation guide](../../README.md#installation). The API command below uses the Windows `.venv` path.
 
 ## Installation
 
 At the root of the repo
-```
+```sh
 npm install --save-dev concurrently
 ```
 
-## Configure the Package.json
+## Configure package.json
 
-```
+```json
 {
   "name": "rldemo",
   "private": true,
   "scripts": {
     "dev": "concurrently --kill-others -n API,WEB -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
-    "dev:api": ".\\.venv\\Scripts\\python.exe -m uvicorn server.app:app --reload --host 127.0.0.1 --port 8000"    "dev:web": "npm run dev --prefix frontend",
+    "dev:api": ".\\.venv\\Scripts\\python.exe -m uvicorn server.app:app --reload --host 127.0.0.1 --port 8000",
+    "dev:web": "npm run dev --prefix frontend",
     "build": "npm run build --prefix frontend",
     "lint": "npm run lint --prefix frontend",
-    "test:api": ".venv/Scripts/python.exe -m unittest discover -s tests -v"
+    "test:api": ".\\.venv\\Scripts\\python.exe -m unittest discover -s tests -v"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^10.0.6"
   }
 }
 ```
@@ -33,6 +36,6 @@ npm install --save-dev concurrently
 
 ## Start the project
 
-```
+```sh
 npm run dev
 ```
