@@ -1,5 +1,6 @@
 # Python
 .venv
+.venv-deploy-test
 __pycache__
 
 # Node
