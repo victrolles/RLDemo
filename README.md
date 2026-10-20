@@ -25,7 +25,7 @@ Link to website : [https://rl-demo-delta.vercel.app/](https://rl-demo-delta.verc
 | CartPole-v1 | DQN (Deep Q-Network) | Yes |
 | Pendulum-v1 | SAC (Soft Actor-Critic) | Yes |
 | BipedalWalker-v3 | SAC | Yes |
-| CarRacing-v3 | SAC | No; random actions available |
+| CarRacing-v3 | SAC | Yes |
 
 Checkpoints are discovered in `models/<environment>/<algorithm>/*.pt`. Depending on the files available, you can select the best model, worst model, a random saved model, or a specific checkpoint. Random actions work without a checkpoint.
 
