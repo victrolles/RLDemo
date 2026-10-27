@@ -157,6 +157,19 @@ Make sure to check that **cloudflared** is correctly installed by restarting the
 
 I use **OVH** for the **domain name**, and **Cloudflare** for the **tunnel**
 
+Through Cloudflare, go to Networking -> Tunnels -> rldone-backend -> add a replica -> windows and copy the installation command given by Cloudflare.
+
+It looks like :
+```powershell
+cloudflared.exe service install <TON_TOKEN>
+```
+
+### 3. Run the server using uvicorn
+
+```powershell
+.venv/Scripts/python -m uvicorn server.app:app --host 127.0.0.1 --port 8000
+```
+
 ## Configuration and current limits
 
 - **API connection:** the development proxy targets `http://127.0.0.1:8000` by default. Set `RL_API_TARGET` before launching Vite to change it. For a direct API connection, see [frontend/.env.example](frontend/.env.example) and [frontend setup](frontend/README.md#live-inference).
