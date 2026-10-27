@@ -34,7 +34,7 @@ app.add_middleware(
         "https://rl-demo-delta.vercel.app",
         "https://rl-demo.victorgoudal.fr",
     ],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

@@ -141,6 +141,22 @@ npm run dev:web
 
 To run the Python tests on these systems, use `.venv/bin/python -m unittest discover -s tests -v`.
 
+## Run locally to deploy online (using Cloudflared)
+
+Run these commands from PowerShell.
+
+### 1. Install Cloudflared
+
+```powershell
+winget install --id Cloudflare.cloudflared
+```
+
+Make sure to check that **cloudflared** is correctly installed by restarting the terminal and run `cloudflared --version`
+
+### 2. Create a tunnel
+
+I use **OVH** for the **domain name**, and **Cloudflare** for the **tunnel**
+
 ## Configuration and current limits
 
 - **API connection:** the development proxy targets `http://127.0.0.1:8000` by default. Set `RL_API_TARGET` before launching Vite to change it. For a direct API connection, see [frontend/.env.example](frontend/.env.example) and [frontend setup](frontend/README.md#live-inference).
