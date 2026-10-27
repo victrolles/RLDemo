@@ -4,7 +4,7 @@
 
 RLDemo is a local web application for running trained PyTorch agents in Gymnasium environments. A Python API runs each episode and streams the game frames, actions, rewards, and network activity to a React interface in real time.
 
-Link to website : [https://rl-demo-delta.vercel.app/](https://rl-demo-delta.vercel.app/)
+Link to website : [https://rl-demo.victorgoudal.fr/](https://rl-demo.victorgoudal.fr/)
 
 ![RLDemo inference workspace showing Pendulum, episode replay, rewards, and neural-network inspection](docs/images/inference-preview.png)
 
