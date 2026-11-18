@@ -18,10 +18,10 @@ RUN pip install --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cu126
 
 # Installer les autres dépendances Python
-COPY requirements-docker.txt .
+COPY requirements.txt .
 
 RUN pip install --no-cache-dir \
-    -r requirements-docker.txt
+    -r requirements.txt
 
 # Copier le code du backend et les checkpoints
 COPY agents/ ./agents/
