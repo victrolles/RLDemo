@@ -8,7 +8,7 @@ Link to website : [https://rl-demo.victorgoudal.fr/](https://rl-demo.victorgouda
 
 ![RLDemo inference workspace showing Pendulum, episode replay, rewards, and neural-network inspection](docs/images/inference-preview.png)
 
-[Features](#features) · [Installation](#installation) · [Run locally](#run-locally) · [Tutorials](#things-i-learned-during-this-project) · [License](#license)
+[Features](#features) · [Installation](#installation) · [Run locally](#run-locally) · [Manage with Docker](docs/tutorials/manage_docker.md) · [Tutorials](#things-i-learned-during-this-project) · [License](#license)
 
 ## Features
 
@@ -187,6 +187,7 @@ Tutorials and implementation notes collected while building RLDemo:
 | [Create a React frontend](docs/tutorials/create_react_frontend.md) | Set up Node.js, npm, React, TypeScript, Vite, and routing. |
 | [Orchestrate a local project with Concurrently](docs/tutorials/local_orchestrator.md) | Start the API and frontend together and manage their lifecycle through npm scripts. |
 | [Deploy RLDemo with Render and Vercel](docs/tutorials/deploy_render_vercel.md) | Deploy the Python API and React frontend without Docker, configure CORS and WebSockets, and troubleshoot production. |
+| [Manage with Docker Compose](docs/tutorials/manage_docker.md) | Manage RLDemo and Surrogate Demo on Ubuntu: start/stop, logs, health checks, updates, Cloudflare, and reboot recovery. |
 | [Build a live inference API](docs/live_inference.md) | Discover checkpoints, stream frames over WebSockets, replay episodes, and inspect neural networks. |
 | [Frontend implementation notes](frontend/README.md) | Configure the API proxy, add gameplay GIFs, and understand the viewer and replay interface. |
 
