@@ -29,10 +29,13 @@ class InferenceRunner:
         else:
 
             # Device
+            print(f"Torch version CUDA available: {torch.version.cuda}")
             if torch.cuda.is_available():
                 self.device = torch.device("cuda")
+                print(f"Using GPU: {torch.cuda.get_device_name(self.device)}")
             else:
                 self.device = torch.device("cpu")
+                print("Using CPU")
 
             # Load the model and policy
             model_factory = ModelFactory(config, self.device)
