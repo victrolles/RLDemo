@@ -6,7 +6,7 @@ RLDemo is a local web application for running trained PyTorch agents in Gymnasiu
 
 Link to website : [https://rl-demo.victorgoudal.fr/](https://rl-demo.victorgoudal.fr/)
 
-![RLDemo inference workspace showing Pendulum, episode replay, rewards, and neural-network inspection](docs/images/inference-preview.png)
+![RLDemo inference workspace showing Pendulum, episode replay, rewards, and neural-network inspection](docs/images/rl-demo.gif)
 
 [Features](#features) · [Installation](#installation) · [Run locally](#run-locally) · [Manage with Docker](docs/tutorials/manage_docker.md) · [Tutorials](#things-i-learned-during-this-project) · [License](#license)
 
